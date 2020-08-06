@@ -110,7 +110,7 @@
             this.groupBox3.Size = new System.Drawing.Size(163, 129);
             this.groupBox3.TabIndex = 2;
             this.groupBox3.TabStop = false;
-            this.groupBox3.Text = "试管";
+            this.groupBox3.Text = "毛细管";
             // 
             // check_tube
             // 
@@ -162,15 +162,16 @@
             this.H_num.Name = "H_num";
             this.H_num.Size = new System.Drawing.Size(51, 21);
             this.H_num.TabIndex = 6;
+            this.H_num.ValueChanged += new System.EventHandler(this.H_num_ValueChanged);
             // 
             // label11
             // 
             this.label11.AutoSize = true;
             this.label11.Location = new System.Drawing.Point(14, 46);
             this.label11.Name = "label11";
-            this.label11.Size = new System.Drawing.Size(41, 12);
+            this.label11.Size = new System.Drawing.Size(53, 12);
             this.label11.TabIndex = 5;
-            this.label11.Text = "试管数";
+            this.label11.Text = "毛细管数";
             // 
             // numericUpDown1
             // 

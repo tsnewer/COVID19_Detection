@@ -20,7 +20,7 @@ namespace COVID19_Detection
     public partial class CamConfigForm : Form
     {
         MainForm mainform;
-        Thread WaitForFrameThread;                 //等待线程
+        public Thread WaitForFrameThread;                 //等待线程
 
 
         HANDLE m_hDC;
@@ -59,9 +59,9 @@ namespace COVID19_Detection
       
         //double[] averg;
         double[] average_temp;
-        double[] average = new double[2048 * 1148];
-        int[] top = new int[2048];
-        int tubenum = 0;
+        double[] average = new double[2048 * 1148];  ///曝光均值图像
+        int[] top = new int[2048]; //每个试管中间坐标
+        int tubenum = 0; //试管数
 
         //SynchronizationContext m_SyncContext = null;
 
@@ -96,7 +96,7 @@ namespace COVID19_Detection
             PicNum.Value = mainform.Pic_num;
 
             Tube_Num.Value = 0;
-            H_num.Value = 20;
+            H_num.Value = mainform.NumSeries;
             V_Pixel.Value = 10;
             check_tube.Checked = false;
 
@@ -120,9 +120,10 @@ namespace COVID19_Detection
             TUCamera.TUCAM_Draw_Init(mainform.m_opCam.hIdxTUCam, mainform.m_itDraw);
             timer.Stop();
 
-            WaitForFrameThread.Abort();
+           // WaitForFrameThread.Abort();
             mainform.timer.Start();
-
+            mainform.Init_Layout(mainform.tableLayoutPanel, mainform.NumTube, mainform.NumSeries);
+            mainform.InitDataCache(mainform.NumTube, mainform.NumSeries);
         }
 
         private void ShowpictureBox_Click(object sender, EventArgs e)
@@ -333,18 +334,34 @@ namespace COVID19_Detection
                                     }
                                 }
 
-                                // if(Tube_Num.Value !=n)
-                                //     Tube_Num.Value = n;
-                                tubenum = n;
-                                for (int nn=0;nn<n;nn++)
+                                if (mainform.NumTube <= n)
                                 {
-                                    double min = H_averg[Convert.ToInt32(top[nn])];
-                                    for (int i = top[nn] - Convert.ToInt32(V_Pixel.Value); i < top[nn] + Convert.ToInt32(V_Pixel.Value); i++)
-                                        if (H_averg[top[i]] < min) 
-                                         {
-                                            min = H_averg[Convert.ToInt32(top[nn])];
-                                            top[nn] = i;
+                                    tubenum = n;
+                                    for (int nn = 0; nn < mainform.NumTube; nn++)
+                                    {
+                                        double min = H_averg[Convert.ToInt32(top[nn])];
+                                        for (int i = (top[nn] - Convert.ToInt32(V_Pixel.Value)) > 0 ? (top[nn] - Convert.ToInt32(V_Pixel.Value)) : 0; i < ((top[nn] + Convert.ToInt32(V_Pixel.Value)) < 2048 ? (top[nn] + Convert.ToInt32(V_Pixel.Value)) : 2048); i++)
+                                            if (H_averg[top[i]] < min)
+                                            {
+                                                min = H_averg[Convert.ToInt32(top[nn])];
+                                                top[nn] = i;
+                                            }
+
+                                        int height_temp = mainform.m_drawframe.usHeight / mainform.NumSeries;
+                                        for (int k = 0; k < mainform.NumSeries; k++)
+                                        {
+                                            double sum_temp = 0;
+                                            for (int i = (top[nn] - Convert.ToInt32(V_Pixel.Value)) > 0 ? (top[nn] - Convert.ToInt32(V_Pixel.Value)) : 0; i < ((top[nn] + Convert.ToInt32(V_Pixel.Value)) < 2048 ? (top[nn] + Convert.ToInt32(V_Pixel.Value)) : 2048); i++)
+                                            {
+                                                for (int j = k * height_temp; j < (k + 1) * height_temp; j++)
+                                                    sum_temp += average[i + j * mainform.m_drawframe.usWidth];
+                                            }
+                                            mainform.value_to_show[nn, k] = sum_temp / (height_temp * (Convert.ToInt32(V_Pixel.Value) * 2 + 1));
                                         }
+
+                                    }
+
+                                    mainform.UpdateListValue();
                                 }
                             }
 
@@ -606,16 +623,26 @@ namespace COVID19_Detection
                 for (int nn = 0; nn < Tube_Num.Value; nn++)
                 {
                     chart1.Series[nn + 1].Points.Clear();
-                    for (int i = top[nn] - Convert.ToInt32(V_Pixel.Value); i < top[nn] + Convert.ToInt32(V_Pixel.Value); i++)
-                        chart1.Series[nn + 1].Points.AddXY(i, H_averg[i]);
 
+                    lock (top)
+                    {
+
+                        for (int i = (top[nn] - Convert.ToInt32(V_Pixel.Value)) > 0 ? (top[nn] - Convert.ToInt32(V_Pixel.Value)) : 0; i < ((top[nn] + Convert.ToInt32(V_Pixel.Value)) < 2048 ? (top[nn] + Convert.ToInt32(V_Pixel.Value)) : 2048); i++)
+                            chart1.Series[nn + 1].Points.AddXY(i, H_averg[i]);
+                    }
 
                 }
         }
 
         private void Tube_Num_ValueChanged(object sender, EventArgs e)
         {
+            if (Tube_Num.Value != 0)
+            {
 
+                mainform.Init_Layout(mainform.tableLayoutPanel, Convert.ToInt32(Tube_Num.Value), mainform.NumSeries);
+                mainform.InitDataCache(Convert.ToInt32(Tube_Num.Value), mainform.NumSeries);
+                mainform.NumTube = Convert.ToInt32(Tube_Num.Value);
+            }
             //InitChart();
             chart1.Series.Clear();
             //定义存储和显示点的容器               
@@ -627,7 +654,7 @@ namespace COVID19_Detection
             series.Color = Color.Red;
             series.ChartType = SeriesChartType.Spline;
             series.Points.Clear();
-
+            
 
             for (int i = 0; i < Tube_Num.Value; i++)
             {
@@ -684,6 +711,16 @@ namespace COVID19_Detection
                 }
             }
 
+        }
+
+        private void H_num_ValueChanged(object sender, EventArgs e)
+        {
+            if (H_num.Value != 0)
+            {
+                mainform.Init_Layout(mainform.tableLayoutPanel, mainform.NumTube, Convert.ToInt32(H_num.Value));
+                mainform.InitDataCache(mainform.NumTube, Convert.ToInt32(H_num.Value));
+                mainform.NumSeries = Convert.ToInt32(H_num.Value);
+            }
         }
 
         //private void SetTextSafePost()
