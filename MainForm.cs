@@ -12,6 +12,7 @@ using TUCAMERA;
 using HANDLE = System.IntPtr;
 using System.Windows.Forms.DataVisualization.Charting;
 using System.Collections;
+using System.IO;
 
 namespace COVID19_Detection
 {
@@ -81,6 +82,14 @@ namespace COVID19_Detection
         public double[,] value_to_show;
         public List<double>[] dataList; 
         public CamConfigForm camConfigForm;
+
+        string startup_path;
+        string data_path;
+        public string file_path;
+
+        public bool IsSave = false;
+
+        public int record_time;
 
         public MainForm()
         {
@@ -491,6 +500,91 @@ namespace COVID19_Detection
             camConfigForm = new CamConfigForm(this);
             camConfigForm.Show();
             //timer.Stop();
+        }
+
+        public void InitPath()
+        {
+            startup_path = Application.StartupPath;
+            data_path = startup_path + "\\Data";
+            if (!Directory.Exists(data_path))
+            {
+                Directory.CreateDirectory(data_path);
+            }
+            file_path = string.Concat(new object[] { data_path, "\\", DateTime.Now.ToString("yyyyMMdd_HHmmss") });
+            if (!Directory.Exists(file_path))
+            {
+                Directory.CreateDirectory(file_path);
+            }
+        }
+
+        public void WriteDataFile(string file_path, double[] data,bool clear)
+        {
+            string temp_data = "";
+            FileStream fs;
+            if (clear==false)
+            {
+                fs = new FileStream(file_path, FileMode.Append, FileAccess.Write);
+            }
+            else
+            {
+                fs = new FileStream(file_path, FileMode.Create, FileAccess.Write);
+            }
+
+            for (int i = 0; i < data.Length; i++)
+            {
+                if (i == data.Length - 1)
+                {
+                    temp_data = temp_data + (int)data[i];
+                }
+                else
+                {
+                    temp_data = temp_data + (int)data[i] + "\t";
+                }
+            }
+            temp_data += Environment.NewLine;
+            StreamWriter writer = new StreamWriter(fs);
+            writer.Write(temp_data);
+            writer.Flush();
+            writer.Close();
+            fs.Close();
+        }
+
+        public int[] ReadDataFile(string file_path)
+        {
+            StreamReader reader = new StreamReader(file_path);
+            string data = reader.ReadToEnd();
+            string[] array = data.Split('\t');
+            int[] result = Array.ConvertAll<string, int>(array, (string element) => int.Parse(element));
+            reader.Close();
+            return result;
+        }
+
+        private void btn_start_savedata_Click(object sender, EventArgs e)
+        {           
+            if (IsSave == false)
+            {
+                InitPath();
+                btn_start_savedata.Text = "停止存储";
+                IsSave = true;
+            }
+            else
+            {
+                btn_start_savedata.Text = "开始存储";
+                IsSave = false;
+            }
+           
+        }
+
+        private void btn_record_time_Click(object sender, EventArgs e)
+        {           
+            try
+            {
+                record_time = Convert.ToInt32(tb_record_time.Text);
+            }
+            catch (Exception exception)
+            {
+                MessageBox.Show("请填写正确的整数时间！");
+            }
         }
     }
 }

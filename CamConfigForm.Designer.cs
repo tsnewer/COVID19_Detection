@@ -33,7 +33,11 @@
             System.Windows.Forms.DataVisualization.Charting.Legend legend1 = new System.Windows.Forms.DataVisualization.Charting.Legend();
             System.Windows.Forms.DataVisualization.Charting.Series series1 = new System.Windows.Forms.DataVisualization.Charting.Series();
             this.panel1 = new System.Windows.Forms.Panel();
+            this.groupBox4 = new System.Windows.Forms.GroupBox();
+            this.CameraRead = new System.Windows.Forms.Button();
+            this.CameraSave = new System.Windows.Forms.Button();
             this.groupBox3 = new System.Windows.Forms.GroupBox();
+            this.check_top_auto = new System.Windows.Forms.CheckBox();
             this.check_tube = new System.Windows.Forms.CheckBox();
             this.V_Pixel = new System.Windows.Forms.NumericUpDown();
             this.label13 = new System.Windows.Forms.Label();
@@ -68,6 +72,7 @@
             this.ShowpictureBoxCamera = new System.Windows.Forms.PictureBox();
             this.chart1 = new System.Windows.Forms.DataVisualization.Charting.Chart();
             this.panel1.SuspendLayout();
+            this.groupBox4.SuspendLayout();
             this.groupBox3.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.V_Pixel)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.Tube_Num)).BeginInit();
@@ -85,6 +90,7 @@
             // panel1
             // 
             this.panel1.BackColor = System.Drawing.SystemColors.ControlDark;
+            this.panel1.Controls.Add(this.groupBox4);
             this.panel1.Controls.Add(this.groupBox3);
             this.panel1.Controls.Add(this.groupBox2);
             this.panel1.Controls.Add(this.groupBox1);
@@ -94,8 +100,40 @@
             this.panel1.Size = new System.Drawing.Size(221, 674);
             this.panel1.TabIndex = 0;
             // 
+            // groupBox4
+            // 
+            this.groupBox4.Controls.Add(this.CameraRead);
+            this.groupBox4.Controls.Add(this.CameraSave);
+            this.groupBox4.Location = new System.Drawing.Point(19, 522);
+            this.groupBox4.Name = "groupBox4";
+            this.groupBox4.Size = new System.Drawing.Size(159, 54);
+            this.groupBox4.TabIndex = 3;
+            this.groupBox4.TabStop = false;
+            this.groupBox4.Text = "设置存储与读取";
+            // 
+            // CameraRead
+            // 
+            this.CameraRead.Location = new System.Drawing.Point(76, 20);
+            this.CameraRead.Name = "CameraRead";
+            this.CameraRead.Size = new System.Drawing.Size(53, 28);
+            this.CameraRead.TabIndex = 0;
+            this.CameraRead.Text = "读取";
+            this.CameraRead.UseVisualStyleBackColor = true;
+            this.CameraRead.Click += new System.EventHandler(this.CameraRead_Click);
+            // 
+            // CameraSave
+            // 
+            this.CameraSave.Location = new System.Drawing.Point(13, 20);
+            this.CameraSave.Name = "CameraSave";
+            this.CameraSave.Size = new System.Drawing.Size(53, 28);
+            this.CameraSave.TabIndex = 0;
+            this.CameraSave.Text = "存储";
+            this.CameraSave.UseVisualStyleBackColor = true;
+            this.CameraSave.Click += new System.EventHandler(this.CameraSave_Click);
+            // 
             // groupBox3
             // 
+            this.groupBox3.Controls.Add(this.check_top_auto);
             this.groupBox3.Controls.Add(this.check_tube);
             this.groupBox3.Controls.Add(this.V_Pixel);
             this.groupBox3.Controls.Add(this.label13);
@@ -105,12 +143,23 @@
             this.groupBox3.Controls.Add(this.label11);
             this.groupBox3.Controls.Add(this.numericUpDown1);
             this.groupBox3.Controls.Add(this.label10);
-            this.groupBox3.Location = new System.Drawing.Point(19, 476);
+            this.groupBox3.Location = new System.Drawing.Point(19, 359);
             this.groupBox3.Name = "groupBox3";
             this.groupBox3.Size = new System.Drawing.Size(163, 129);
             this.groupBox3.TabIndex = 2;
             this.groupBox3.TabStop = false;
             this.groupBox3.Text = "毛细管";
+            // 
+            // check_top_auto
+            // 
+            this.check_top_auto.AutoSize = true;
+            this.check_top_auto.Location = new System.Drawing.Point(79, 18);
+            this.check_top_auto.Name = "check_top_auto";
+            this.check_top_auto.Size = new System.Drawing.Size(48, 16);
+            this.check_top_auto.TabIndex = 7;
+            this.check_top_auto.Text = "auto";
+            this.check_top_auto.UseVisualStyleBackColor = true;
+            this.check_top_auto.CheckedChanged += new System.EventHandler(this.check_tube_CheckedChanged);
             // 
             // check_tube
             // 
@@ -201,7 +250,7 @@
             this.groupBox2.Controls.Add(this.label4);
             this.groupBox2.Controls.Add(this.V_offset);
             this.groupBox2.Controls.Add(this.H_offset);
-            this.groupBox2.Location = new System.Drawing.Point(18, 284);
+            this.groupBox2.Location = new System.Drawing.Point(18, 167);
             this.groupBox2.Name = "groupBox2";
             this.groupBox2.Size = new System.Drawing.Size(165, 166);
             this.groupBox2.TabIndex = 1;
@@ -303,7 +352,7 @@
             this.groupBox1.Controls.Add(this.label2);
             this.groupBox1.Controls.Add(this.textBox_Expo);
             this.groupBox1.Controls.Add(this.label1);
-            this.groupBox1.Location = new System.Drawing.Point(22, 160);
+            this.groupBox1.Location = new System.Drawing.Point(22, 43);
             this.groupBox1.Name = "groupBox1";
             this.groupBox1.Size = new System.Drawing.Size(161, 83);
             this.groupBox1.TabIndex = 0;
@@ -449,6 +498,10 @@
             this.chart1.Size = new System.Drawing.Size(721, 309);
             this.chart1.TabIndex = 1;
             this.chart1.Text = "chart1";
+            this.chart1.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.chart1_MouseDoubleClick);
+            this.chart1.MouseDown += new System.Windows.Forms.MouseEventHandler(this.chart1_MouseDown);
+            this.chart1.MouseMove += new System.Windows.Forms.MouseEventHandler(this.chart1_MouseMove);
+            this.chart1.MouseUp += new System.Windows.Forms.MouseEventHandler(this.chart1_MouseUp);
             // 
             // CamConfigForm
             // 
@@ -465,6 +518,7 @@
             this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.CamConfigForm_FormClosed);
             this.Load += new System.EventHandler(this.CamConfigForm_Load);
             this.panel1.ResumeLayout(false);
+            this.groupBox4.ResumeLayout(false);
             this.groupBox3.ResumeLayout(false);
             this.groupBox3.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.V_Pixel)).EndInit();
@@ -522,5 +576,9 @@
         private System.Windows.Forms.NumericUpDown numericUpDown1;
         private System.Windows.Forms.Label label10;
         private System.Windows.Forms.CheckBox check_tube;
+        private System.Windows.Forms.CheckBox check_top_auto;
+        private System.Windows.Forms.GroupBox groupBox4;
+        private System.Windows.Forms.Button CameraRead;
+        private System.Windows.Forms.Button CameraSave;
     }
 }

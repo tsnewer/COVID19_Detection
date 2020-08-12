@@ -52,6 +52,8 @@ namespace COVID19_Detection
 
 
         bool draw_flag;
+
+
         private Rectangle currRect = new Rectangle(-1, -1, -1, -1);
         
         
@@ -62,6 +64,10 @@ namespace COVID19_Detection
         double[] average = new double[2048 * 1148];  ///曝光均值图像
         int[] top = new int[2048]; //每个试管中间坐标
         int tubenum = 0; //试管数
+
+
+        int topdrawvalue, topdrawstartvalue;
+        bool topdrawflag = false;
 
         //SynchronizationContext m_SyncContext = null;
 
@@ -99,6 +105,8 @@ namespace COVID19_Detection
             H_num.Value = mainform.NumSeries;
             V_Pixel.Value = 10;
             check_tube.Checked = false;
+            check_top_auto.Checked = true;
+
 
             timer = new System.Windows.Forms.Timer();
             timer.Interval = 10;
@@ -116,6 +124,7 @@ namespace COVID19_Detection
         private void CamConfigForm_FormClosed(object sender, FormClosedEventArgs e)
         {
 
+            check_top_auto.Checked = false;
             TUCamera.TUCAM_Draw_Uninit(mainform.m_opCam.hIdxTUCam);
             TUCamera.TUCAM_Draw_Init(mainform.m_opCam.hIdxTUCam, mainform.m_itDraw);
             timer.Stop();
@@ -164,7 +173,7 @@ namespace COVID19_Detection
                 //    m_dwFrmCnt = 0;
                 //}
 
-
+                //绘图
                 mainform.m_drawframe.ucFormatGet = (byte)TUFRM_FORMATS.TUFRM_FMT_RGB888;
                 if (TUCAMRET.TUCAMRET_SUCCESS == TUCamera.TUCAM_Buf_WaitForFrame(mainform.m_opCamList[mainform.m_nCamIndex].hIdxTUCam, ref mainform.m_drawframe))
                 {
@@ -208,8 +217,53 @@ namespace COVID19_Detection
                     if (null != mainform.m_drawframe.pBuffer)
                     {
 
+
                         mainform.m_drawing.pFrame = Marshal.AllocHGlobal(Marshal.SizeOf(mainform.m_drawframe));
+
                         Marshal.StructureToPtr(mainform.m_drawframe, mainform.m_drawing.pFrame, true);
+
+                        int nSize = (int)(mainform.m_drawframe.uiImgSize + mainform.m_drawframe.usHeader);
+
+                   
+
+                        byte[] pBuf = new byte[nSize];
+
+      
+
+
+                        Marshal.Copy(mainform.m_drawframe.pBuffer, pBuf, 0, nSize);
+                        //Buffer.BlockCopy(pBuf, (int)mainform.m_drawframe.usHeader, pBuf, 0, (int)mainform.m_drawframe.uiImgSize);
+
+
+                        for (int i = 0; i < mainform.m_drawframe.usWidth; i ++)
+                            for (int j = 0; j < mainform.m_drawframe.usHeight; j++)
+                            {
+                                byte t = pBuf[mainform.m_drawframe.usHeader + i * 3 + (j) * (int)mainform.m_drawframe.uiWidthStep];
+                                byte t1, t2, t3;
+                                if(t<64)
+                                {
+                                    t1 = 0;t2 = 4 * 4;t3 = 255;
+                                }
+                                else if(t>=65&&t<128)
+                                {
+                                    t1 = 0; t2 = 255;t3 = (byte)(2 * 255 - 4 * t);
+                                }
+                                else if (t>=128&&t<192)
+                                {
+                                    t1 =(byte) (4 * t - 2 * 255);t2 = 255;t3 = 0;
+                                }
+                                else
+                                {
+                                    t1 = 255;t2= (byte)(4 * t - 2 * 255);t3 = 0;
+                                }
+
+                                pBuf[mainform.m_drawframe.usHeader+i*3 + (j) * (int)mainform.m_drawframe.uiWidthStep] = t3;
+                                pBuf[mainform.m_drawframe.usHeader + i*3 +1+ (j) * (int)mainform.m_drawframe.uiWidthStep] = t2;
+                                pBuf[mainform.m_drawframe.usHeader + i * 3 + 2 + (j) * (int)mainform.m_drawframe.uiWidthStep] = t1;
+
+                            }
+                        IntPtr a= mainform.m_drawframe.pBuffer;
+                        Marshal.Copy(pBuf,0,a,nSize);
 
                         mainform.m_drawing.nDstX = m_nDrawOffX;
                         mainform.m_drawing.nDstY = m_nDrawOffY;
@@ -291,62 +345,73 @@ namespace COVID19_Detection
                             if (check_tube.Checked == true)
                             {
                                 //double[] top = new double[mainform.m_drawframe.usWidth];
-                                n = 0;
-                                for (int i = decimal.ToInt32( V_Pixel.Value); i < mainform.m_drawframe.usWidth - V_Pixel.Value; i++)
+                                if (check_top_auto.Checked == true)
                                 {
-                                   
 
-                                    if (((H_averg[i] - H_averg[i - 1]) * (H_averg[i+1] - H_averg[i]) < 0) && (H_averg[i]<a))
+                                    n = 0;
+                                    for (int i = decimal.ToInt32(V_Pixel.Value); i < mainform.m_drawframe.usWidth - V_Pixel.Value; i++)
                                     {
-                                        top[n] = i;
-                                        n++;
-                                    }
 
-                                }
-                                bool flag = true;
-                             
-                                while (flag)
-                                {
-                                    flag = false;
-                                    int nn = n;
-                                    for (int i = 1; i < nn; i++)
-                                    {
-                               
-                                        if ((top[i] - top[i - 1] < Convert.ToInt32(V_Pixel.Value) * 2) &&(top[i] != top[i - 1]))
+
+                                        if (((H_averg[i] - H_averg[i - 1]) * (H_averg[i + 1] - H_averg[i]) < 0) && (H_averg[i] < a))
                                         {
-                                            flag = true;n--;
-                                            if (H_averg[Convert.ToInt32(top[i])] < H_averg[Convert.ToInt32(top[i - 1])])
-                                                top[i - 1] = 0;
-                                            else
-                                                top[i] = 0;
+                                            top[n] = i;
+                                            n++;
                                         }
-                                    }
-                                    for (int i = 0; i < nn; i++)
-                                    {
-                                        if (top[i] == 0)
-                                        { 
-                                          for (int j =i; j<nn+1; j++)
-                                                top[j] = top[j + 1];
-                                            if ((top[i] == 0) && (i < n))
-                                                i--;
-                                         }
 
                                     }
-                                }
+                                    bool flag = true;
 
-                                if (mainform.NumTube <= n)
-                                {
-                                    tubenum = n;
-                                    for (int nn = 0; nn < mainform.NumTube; nn++)
+                                    while (flag)
                                     {
-                                        double min = H_averg[Convert.ToInt32(top[nn])];
-                                        for (int i = (top[nn] - Convert.ToInt32(V_Pixel.Value)) > 0 ? (top[nn] - Convert.ToInt32(V_Pixel.Value)) : 0; i < ((top[nn] + Convert.ToInt32(V_Pixel.Value)) < 2048 ? (top[nn] + Convert.ToInt32(V_Pixel.Value)) : 2048); i++)
-                                            if (H_averg[top[i]] < min)
+                                        flag = false;
+                                        int nn = n;
+                                        for (int i = 1; i < nn; i++)
+                                        {
+
+                                            if ((top[i] - top[i - 1] < Convert.ToInt32(V_Pixel.Value) * 2) && (top[i] != top[i - 1]))
                                             {
-                                                min = H_averg[Convert.ToInt32(top[nn])];
-                                                top[nn] = i;
+                                                flag = true; n--;
+                                                if (H_averg[Convert.ToInt32(top[i])] < H_averg[Convert.ToInt32(top[i - 1])])
+                                                    top[i - 1] = 0;
+                                                else
+                                                    top[i] = 0;
+                                            }
+                                        }
+                                        for (int i = 0; i < nn; i++)
+                                        {
+                                            if (top[i] == 0)
+                                            {
+                                                for (int j = i; j < nn + 1; j++)
+                                                    top[j] = top[j + 1];
+                                                if ((top[i] == 0) && (i < n))
+                                                    i--;
                                             }
 
+                                        }
+                                    }
+
+                                    if (mainform.NumTube <= n)
+                                    {
+                                        tubenum = n;
+                                        for (int nn = 0; nn < mainform.NumTube; nn++)
+                                        {
+                                            double min = H_averg[Convert.ToInt32(top[nn])];
+                                            for (int i = (top[nn] - Convert.ToInt32(V_Pixel.Value)) > 0 ? (top[nn] - Convert.ToInt32(V_Pixel.Value)) : 0; i < ((top[nn] + Convert.ToInt32(V_Pixel.Value)) < 2048 ? (top[nn] + Convert.ToInt32(V_Pixel.Value)) : 2048); i++)
+                                                if (H_averg[top[i]] < min)
+                                                {
+                                                    min = H_averg[Convert.ToInt32(top[nn])];
+                                                    top[nn] = i;
+                                                }
+
+
+                                        }
+                                    }
+                                }
+                                if (mainform.NumTube <= n)
+                                {
+                                    for (int nn = 0; nn < mainform.NumTube; nn++)
+                                    {
                                         int height_temp = mainform.m_drawframe.usHeight / mainform.NumSeries;
                                         for (int k = 0; k < mainform.NumSeries; k++)
                                         {
@@ -358,10 +423,35 @@ namespace COVID19_Detection
                                             }
                                             mainform.value_to_show[nn, k] = sum_temp / (height_temp * (Convert.ToInt32(V_Pixel.Value) * 2 + 1));
                                         }
-
                                     }
 
                                     mainform.UpdateListValue();
+                                }
+                                if(mainform.IsSave)
+                                {
+                                    double[] temp = new double[mainform.NumSeries];
+                                    int height_temp = mainform.m_drawframe.usHeight / mainform.NumSeries;
+                                    for (int nn = 0; nn < mainform.NumTube; nn++)
+                                    {
+                                        for (int i = -Convert.ToInt32(V_Pixel.Value); i < Convert.ToInt32(V_Pixel.Value); i++)
+                                        {
+                                            for (int k = 0; k < mainform.NumSeries; k++)
+                                            {
+                                                double sum_temp = 0;
+
+                                                for (int j = k * height_temp; j < (k + 1) * height_temp; j++)
+                                                    sum_temp += average[top[nn] + i + j * mainform.m_drawframe.usWidth];
+                                                temp[k] = sum_temp / height_temp;
+                                            }
+                                            string path = mainform.file_path + "\\" + nn.ToString() + "_" + i.ToString() + ".txt";
+
+
+                                            mainform.WriteDataFile(path, temp, false);
+                                        }
+                                           
+                                        
+                                    }
+
                                 }
                             }
 
@@ -549,6 +639,7 @@ namespace COVID19_Detection
                 mainform.roiAttr.nVOffset = Convert.ToInt32(V_offset.Text);
                 mainform.roiAttr.nWidth = Convert.ToInt32(ROI_Width.Text);
                 mainform.roiAttr.nHeight = Convert.ToInt32(ROI_Height.Text);
+                mainform.roiAttr.bEnable = true;
                 setRoi(mainform.roiAttr);
 
             }
@@ -619,8 +710,10 @@ namespace COVID19_Detection
 
                 chart1.Series[0].Points.AddXY(i, H_averg[i]);
             }
-            if ((check_tube.Checked == true) && (tubenum >= Tube_Num.Value))
-                for (int nn = 0; nn < Tube_Num.Value; nn++)
+            int nn;
+            if (((check_tube.Checked == true) && (tubenum >= Tube_Num.Value)) || ((check_tube.Checked == true) && (check_top_auto.Checked == false)))
+            {
+                for (nn = 0; nn < Tube_Num.Value; nn++)
                 {
                     chart1.Series[nn + 1].Points.Clear();
 
@@ -632,6 +725,14 @@ namespace COVID19_Detection
                     }
 
                 }
+                if (topdrawflag == true)
+                {
+                    chart1.Series[nn + 1].Points.Clear();
+
+                    for (int i = (topdrawvalue - Convert.ToInt32(V_Pixel.Value)) > 0 ? (topdrawvalue - Convert.ToInt32(V_Pixel.Value)) : 0; i < ((topdrawvalue + Convert.ToInt32(V_Pixel.Value)) < 2048 ? (topdrawvalue + Convert.ToInt32(V_Pixel.Value)) : 2048); i++)
+                        chart1.Series[nn + 1].Points.AddXY(i, H_averg[i]);
+                }
+            }
         }
 
         private void Tube_Num_ValueChanged(object sender, EventArgs e)
@@ -723,6 +824,178 @@ namespace COVID19_Detection
             }
         }
 
+        private void chart1_MouseUp(object sender, MouseEventArgs e)
+        {
+            if(check_top_auto.Checked==false && e.Button == MouseButtons.Right)
+            {
+                topdrawflag = false;
+                chart1.Series.RemoveAt(Convert.ToInt32(Tube_Num.Value)+1);
+                var area = chart1.ChartAreas[0];
+                double xValue = area.AxisX.PixelPositionToValue(e.X);
+                bool flag = false;
+                for (int i=0;i< Tube_Num.Value; i++)
+                {
+                    if(Math.Abs(top[i]- topdrawstartvalue) < 2*Convert.ToInt32(V_Pixel.Value))
+                    {
+                        top[i] =(int) xValue;
+                        flag = true;
+                    }
+                }
+                if(flag==false)
+                {
+                    Tube_Num.Value++;
+                    int i = 0;
+                    for (i = 0; i < Tube_Num.Value - 1; i++)
+                    {
+                        
+                        if(top[i]>xValue)
+                        {
+                            for (int j= Convert.ToInt32(Tube_Num.Value);j>i;j--)
+                            {
+                                top[j] = top[j - 1];
+                            }
+                            top[i] = (int)xValue; 
+                            break;
+                        }
+                    }
+                    if(i== Tube_Num.Value - 1)
+                    {
+                        top[i] = (int)xValue;
+                    }
+                    
+                }
+            }
+
+
+
+        }
+
+      
+
+        private void chart1_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (check_top_auto.Checked == false && e.Button == MouseButtons.Right)
+            {
+               
+                var area = chart1.ChartAreas[0];
+                topdrawvalue = (int)area.AxisX.PixelPositionToValue(e.X);
+
+            }
+        }
+
+        private void chart1_MouseDown(object sender, MouseEventArgs e)
+        {
+            if (check_top_auto.Checked == false && e.Button == MouseButtons.Right)
+            {
+                topdrawflag = true;
+                System.Windows.Forms.DataVisualization.Charting.Series series2 = new System.Windows.Forms.DataVisualization.Charting.Series();
+                series2.Name = "temp";
+                series2.Color = Color.Blue;
+                series2.ChartType = SeriesChartType.Spline;
+                series2.ChartArea = chart1.ChartAreas[0].Name;
+                chart1.Series.Add(series2);
+                var area = chart1.ChartAreas[0];
+                topdrawstartvalue = (int)area.AxisX.PixelPositionToValue(e.X);
+            }
+        }
+
+        private void CameraSave_Click(object sender, EventArgs e)
+        {
+            double[] camera_set = new double[9 + mainform.NumTube];
+            camera_set[0] = (int)(mainform.dbExp * 1000);//曝光时间us
+            camera_set[1] = mainform.Pic_num;//平均张数
+            camera_set[2] = mainform.roiAttr.nHOffset; //ROIset
+            camera_set[3] = mainform.roiAttr.nVOffset;
+            camera_set[4] = mainform.roiAttr.nWidth;
+            camera_set[5] = mainform.roiAttr.nHeight;
+            camera_set[6] = mainform.NumTube;
+            camera_set[7] = Convert.ToInt32(V_Pixel.Value);
+            camera_set[8] = mainform.NumSeries;
+            for (int i = 0; i < mainform.NumTube; i++)
+            {
+                camera_set[9 + i] = top[i];
+            }
+
+            string path = "";
+            System.Windows.Forms.SaveFileDialog fbd = new System.Windows.Forms.SaveFileDialog();
+
+            fbd.FileName = "camera_para.txt";
+
+
+            fbd.Filter = "Files (*.txt)|*.txt";
+
+
+            if (fbd.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+            {
+                path = fbd.FileName;
+
+
+                mainform.WriteDataFile(path, camera_set, true);
+            }
+        }
+
+        private void chart1_MouseDoubleClick(object sender, MouseEventArgs e)
+        {
+            if (check_top_auto.Checked == false && e.Button == MouseButtons.Left)
+            {
+                var area = chart1.ChartAreas[0];
+                double xValue = area.AxisX.PixelPositionToValue(e.X);
+               
+                for (int i = 0; i < Tube_Num.Value; i++)
+                {
+                    if (Math.Abs(top[i] - xValue) < 2 * Convert.ToInt32(V_Pixel.Value))
+                    {
+                        Tube_Num.Value--;
+                        for (int j = i; j < Tube_Num.Value + 1; j++)
+                            top[j] = top[j + 1];
+                    }
+                }
+            }
+        }
+
+        private void CameraRead_Click(object sender, EventArgs e)
+        {
+            string path = string.Empty;
+            var openFileDialog = new Microsoft.Win32.OpenFileDialog()
+            {
+                Filter = "Files (*.txt)|*.txt",//如果需要筛选txt文件（"Files (*.txt)|*.txt"）
+                FileName = "camera_para.txt"
+
+            };
+            var result = openFileDialog.ShowDialog();
+            if (result == true)
+            {
+                path = openFileDialog.FileName;
+                int[] camera_read = mainform.ReadDataFile(path);
+                textBox_Expo.Text = ((double)camera_read[0] / 1000).ToString();
+                PicNum.Value = camera_read[1];
+                checkBox_Roi.Checked = true;
+
+                H_offset.Text = camera_read[2].ToString();
+                V_offset.Text = camera_read[3].ToString();
+                ROI_Width.Text = camera_read[4].ToString();
+                ROI_Height.Text = camera_read[5].ToString();
+
+                mainform.roiAttr.nHOffset = Convert.ToInt32(H_offset.Text);
+                mainform.roiAttr.nVOffset = Convert.ToInt32(V_offset.Text);
+                mainform.roiAttr.nWidth = Convert.ToInt32(ROI_Width.Text);
+                mainform.roiAttr.nHeight = Convert.ToInt32(ROI_Height.Text);
+                mainform.roiAttr.bEnable = true;
+                setRoi(mainform.roiAttr);
+
+                check_tube.Checked = true;
+                check_top_auto.Checked = false;
+
+                Tube_Num.Value = camera_read[6];
+                V_Pixel.Value = camera_read[7];
+                H_num.Value = camera_read[8];
+                for (int i = 0; i < mainform.NumTube; i++)
+                {
+                    top[i] = camera_read[9 + i];
+                }
+            }
+
+        }
         //private void SetTextSafePost()
         //{
         //    chart1.Series[0].Points.Clear();
